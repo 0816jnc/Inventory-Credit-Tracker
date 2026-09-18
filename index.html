@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Inventory &amp; Credit Tracker</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="//fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=tapas" />
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Manrope', 'ui-sans-serif', 'system-ui', 'sans-serif']
+        },
+        colors: {
+          brand: {
+            50:  '#eaf5f2', 100: '#cfe9e2', 200: '#a1d3c5',
+            300: '#6fb9a6', 400: '#3f9c84', 500: '#237f68',
+            600: '#0f6e5c', 700: '#0b5346', 800: '#093f36', 900: '#062e28'
+          }
+        }
+      }
+    }
+  };
+</script>
+
+<style>
+  body { font-feature-settings: "tnum" 1; }
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+  ::-webkit-scrollbar { height: 8px; width: 8px; }
+  ::-webkit-scrollbar-thumb { background: #d6d3cb; border-radius: 9999px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  .modal-backdrop { animation: fadeIn .15s ease-out; }
+  .modal-panel { animation: slideUp .18s ease-out; }
+  @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(10px) } to { opacity: 1; transform: translateY(0) } }
+
+  .toast { animation: toastIn .18s ease-out; }
+  @keyframes toastIn { from { opacity: 0; transform: translateX(16px) } to { opacity: 1; transform: translateX(0) } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .modal-backdrop, .modal-panel, .toast, #refresh-icon { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body class="bg-[#FAF9F6] text-slate-800 font-sans min-h-screen antialiased">
+
+<!-- Config banner: shown until the Apps Script Web App URL is set -->
+<div id="config-banner" class="hidden bg-amber-50 border-b border-amber-200 text-amber-800 text-sm px-4 py-2.5 text-center">
+  Set your Apps Script Web App URL in <code class="bg-amber-100 px-1.5 py-0.5 rounded font-mono text-xs">CONFIG.API_URL</code> near the top of the script section of this file, then reload.
+</div>
+
+<!-- Connection error banner -->
+<div id="conn-error-banner" class="hidden bg-red-50 border-b border-red-200 text-red-700 text-sm px-4 py-2.5 text-center">
+  Couldn't reach the backend. Check the Web App URL and that it's deployed with access set to "Anyone".
+  <button id="retry-btn" class="underline font-medium ml-1">Retry</button>
+</div>
+
+<!-- Header -->
+<header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 pt-4 flex items-center justify-between gap-4">
+    <div class="flex items-center gap-2.5">
+      <div class="h-9 w-9 rounded-lg bg-brand-700 flex items-center justify-center text-white font-bold text-base shrink-0">🧃</div>
+      <div class="leading-tight">
+        <h1 class="text-base font-bold text-slate-900">Inventory &amp; Credit Tracker</h1>
+        <p class="text-xs text-slate-400">JC Refreshments & Snacks</p>
+      </div>
+    </div>
+    <button id="refresh-btn" title="Refresh data" class="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition shrink-0">
+      <svg id="refresh-icon" class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+    </button>
+  </div>
+  <nav class="max-w-6xl mx-auto px-4 sm:px-6 mt-3 flex gap-5 overflow-x-auto">
+    <button data-tab="inventory" class="tab-btn whitespace-nowrap pb-2.5 text-sm font-semibold border-b-2 border-transparent text-slate-400 transition">Inventory</button>
+    <button data-tab="credits" class="tab-btn whitespace-nowrap pb-2.5 text-sm font-semibold border-b-2 border-transparent text-slate-400 transition">Credits</button>
+    <button data-tab="reports" class="tab-btn whitespace-nowrap pb-2.5 text-sm font-semibold border-b-2 border-transparent text-slate-400 transition">Reports</button>
+  </nav>
+</header>
+
+<main>
+
+  <!-- ============ INVENTORY ============ -->
+  <section id="section-inventory" class="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+      <div class="relative w-full sm:w-72">
+        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 104.35 4.35a7.5 7.5 0 0012.3 12.3z" /></svg>
+        <input id="inventory-search" type="text" placeholder="Search by name or ID"
+          class="w-full pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 text-sm bg-white focus:ring-2 focus:ring-brand-600/30 focus:border-brand-600 outline-none" />
+      </div>
+      <button id="add-item-btn" class="inline-flex items-center justify-center gap-1.5 bg-brand-700 hover:bg-brand-800 text-white text-sm font-semibold px-4 py-2.5 rounded-lg shrink-0 transition">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+        Add item
+      </button>
+    </div>
+
+    <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-slate-200 text-slate-500 text-xs">
+              <th class="px-4 py-3 text-left font-medium">Item ID</th>
+              <th class="px-4 py-3 text-left font-medium">Name</th>
+              <th class="px-4 py-3 text-left font-medium">Sales price</th>
+              <th class="px-4 py-3 text-left font-medium">Original price</th>
+              <th class="px-4 py-3 text-left font-medium">Stock</th>
+              <th class="px-4 py-3 text-right font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="inventory-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CREDITS ============ -->
+  <section id="section-credits" class="hidden max-w-6xl mx-auto px-4 sm:px-6 py-6">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+      <div>
+        <h2 class="text-lg font-bold text-slate-900">Credits</h2>
+        <p class="text-xs text-slate-400">Items given out on credit, and what's owed back to you.</p>
+      </div>
+      <button id="add-credit-btn" class="inline-flex items-center justify-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg shrink-0 transition">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+        Record credit
+      </button>
+    </div>
+
+    <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-slate-200 text-slate-500 text-xs">
+              <th class="px-4 py-3 text-left font-medium">Creditor</th>
+              <th class="px-4 py-3 text-left font-medium">Product</th>
+              <th class="px-4 py-3 text-left font-medium">Unit price</th>
+              <th class="px-4 py-3 text-left font-medium">Qty</th>
+              <th class="px-4 py-3 text-left font-medium">Total credit</th>
+              <th class="px-4 py-3 text-left font-medium">Date</th>
+              <th class="px-4 py-3 text-right font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="credits-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ REPORTS ============ -->
+  <section id="section-reports" class="hidden max-w-6xl mx-auto px-4 sm:px-6 py-6">
+    <h2 class="text-lg font-bold text-slate-900 mb-1">Reports</h2>
+    <p class="text-xs text-slate-400 mb-5">Live figures computed from your current inventory and credit records.</p>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div class="bg-white rounded-lg border border-slate-200 border-l-4 border-l-slate-400 p-5">
+        <p class="text-sm text-slate-500">Total inventory value (cost)</p>
+        <p id="metric-inventory-value" class="text-3xl font-extrabold text-slate-900 mt-2 tabular-nums">₱0.00</p>
+        <p class="text-xs text-slate-400 mt-1.5">Original price × stock, summed</p>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 border-l-4 border-l-brand-600 p-5">
+        <p class="text-sm text-slate-500">Potential revenue</p>
+        <p id="metric-potential-revenue" class="text-3xl font-extrabold text-slate-900 mt-2 tabular-nums">₱0.00</p>
+        <p class="text-xs text-slate-400 mt-1.5">Sales price × stock, summed</p>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 border-l-4 border-l-amber-500 p-5">
+        <p class="text-sm text-slate-500">Total outstanding credits</p>
+        <p id="metric-outstanding-credits" class="text-3xl font-extrabold text-amber-700 mt-2 tabular-nums">₱0.00</p>
+        <p class="text-xs text-slate-400 mt-1.5">Sum of every recorded credit</p>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 border-l-4 border-l-emerald-500 p-5">
+        <p class="text-sm text-slate-500">Estimated gross profit</p>
+        <p id="metric-gross-profit" class="text-3xl font-extrabold text-emerald-700 mt-2 tabular-nums">₱0.00</p>
+        <p class="text-xs text-slate-400 mt-1.5">(Sales − original price) × stock</p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4 mt-4">
+      <div class="bg-white rounded-lg border border-slate-200 p-4 text-center">
+        <p id="metric-item-count" class="text-xl font-bold text-slate-800 tabular-nums">0</p>
+        <p class="text-xs text-slate-400">Items tracked</p>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 p-4 text-center">
+        <p id="metric-credit-count" class="text-xl font-bold text-slate-800 tabular-nums">0</p>
+        <p class="text-xs text-slate-400">Credit records</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ============ ITEM MODAL (Add / Edit) ============ -->
+<div id="item-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div class="modal-backdrop absolute inset-0 bg-slate-900/40" onclick="closeItemModal()"></div>
+  <div class="modal-panel relative bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h3 id="item-modal-title" class="text-base font-bold text-slate-900">Add item</h3>
+      <button type="button" onclick="closeItemModal()" class="p-1 rounded hover:bg-slate-100 text-slate-400">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+      </button>
+    </div>
+    <form id="item-form" class="space-y-4" onsubmit="handleItemSubmit(event)">
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">Item name</label>
+        <input id="item-name" required
+          class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-600/30 focus:border-brand-600 outline-none" />
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Sales price</label>
+          <input id="item-sales-price" type="number" step="0.01" min="0" required
+            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-600/30 focus:border-brand-600 outline-none" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Original price</label>
+          <input id="item-original-price" type="number" step="0.01" min="0" required
+            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-600/30 focus:border-brand-600 outline-none" />
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">Stock</label>
+        <input id="item-stock" type="number" step="1" min="0" required
+          class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-600/30 focus:border-brand-600 outline-none" />
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="button" onclick="closeItemModal()" class="flex-1 px-4 py-2.5 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition">Cancel</button>
+        <button type="submit" id="item-submit-btn" class="flex-1 px-4 py-2.5 rounded-lg bg-brand-700 hover:bg-brand-800 text-white text-sm font-semibold transition">Save item</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ============ CREDIT MODAL (Record) ============ -->
+<div id="credit-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div class="modal-backdrop absolute inset-0 bg-slate-900/40" onclick="closeCreditModal()"></div>
+  <div class="modal-panel relative bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-base font-bold text-slate-900">Record a credit</h3>
+      <button type="button" onclick="closeCreditModal()" class="p-1 rounded hover:bg-slate-100 text-slate-400">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+      </button>
+    </div>
+    <form id="credit-form" class="space-y-4" onsubmit="handleCreditSubmit(event)">
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">Creditor name</label>
+        <input id="credit-creditor-name" required placeholder="Who's this for?"
+          class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 outline-none" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">Product</label>
+        <select id="credit-product-select" onchange="handleProductSelectChange()"
+          class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 outline-none">
+          <option value="">Manual entry (not in inventory)</option>
+        </select>
+      </div>
+      <div id="credit-manual-name-wrap">
+        <label class="block text-sm font-medium text-slate-700 mb-1">Product name</label>
+        <input id="credit-manual-name" placeholder="Product name"
+          class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 outline-none" />
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Unit price</label>
+          <input id="credit-price" type="number" step="0.01" min="0" required oninput="updateCreditTotal()"
+            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 outline-none" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-1">Quantity</label>
+          <input id="credit-quantity" type="number" step="1" min="1" value="1" required oninput="updateCreditTotal()"
+            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 outline-none" />
+        </div>
+      </div>
+      <div class="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 flex items-center justify-between">
+        <span class="text-sm text-amber-800">Total credit</span>
+        <span id="credit-total-display" class="text-lg font-bold text-amber-800 tabular-nums">₱0.00</span>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="button" onclick="closeCreditModal()" class="flex-1 px-4 py-2.5 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition">Cancel</button>
+        <button type="submit" id="credit-submit-btn" class="flex-1 px-4 py-2.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold transition">Record credit</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Toasts -->
+<div id="toast-container" class="fixed bottom-4 right-4 z-[60] flex flex-col gap-2 items-end"></div>
+
+<script>
+  // ---------------------------------------------------------------------
+  // CONFIG — paste your Apps Script Web App URL here (ends in /exec)
+  // ---------------------------------------------------------------------
+  const CONFIG = {
+    API_URL: 'https://script.google.com/macros/s/AKfycbwvrotXfSGW0dMNa1aO0iAsg8GhhvE0t-6F39CizKdhT4nCMGyx_3O8GYK9yzVaAibJ/exec',
+    CURRENCY_SYMBOL: '₱' // change to '$', '€', etc. as needed
+  };
+
+  const TAB_ACTIVE_CLASSES = {
+    inventory: ['border-slate-700', 'text-slate-800'],
+    credits:   ['border-amber-600', 'text-amber-700'],
+    reports:   ['border-brand-600', 'text-brand-700']
+  };
+
+  const state = {
+    inventory: [],
+    credits: [],
+    activeTab: 'inventory',
+    editingItemId: null
+  };
+
+  // ---------------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------------
+  function fmtMoney(n) {
+    const num = Number(n) || 0;
+    return CONFIG.CURRENCY_SYMBOL + num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function fmtDate(d) {
+    const dt = new Date(d);
+    if (isNaN(dt.getTime())) return String(d ?? '');
+    return dt.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str ?? '';
+    return div.innerHTML;
+  }
+
+  function showToast(message, type = 'success') {
+    const container = document.getElementById('toast-container');
+    const el = document.createElement('div');
+    const color = type === 'success' ? 'bg-brand-700' : 'bg-red-600';
+    el.className = `toast ${color} text-white text-sm px-4 py-2.5 rounded-lg shadow-lg max-w-xs`;
+    el.textContent = message;
+    container.appendChild(el);
+    setTimeout(() => el.remove(), 3200);
+  }
+
+  function setLoading(isLoading) {
+    document.getElementById('refresh-icon').classList.toggle('animate-spin', isLoading);
+  }
+
+  function isConfigured() {
+    return CONFIG.API_URL && !CONFIG.API_URL.includes('PASTE_YOUR_WEB_APP_URL_HERE');
+  }
+
+  // ---------------------------------------------------------------------
+  // API calls
+  //
+  // GET requests are plain fetches (no custom headers -> no CORS preflight).
+  // POST requests deliberately use Content-Type: text/plain so the browser
+  // treats them as a "simple request" and skips the preflight OPTIONS call,
+  // which Apps Script web apps do not handle. The body is still JSON text;
+  // Code.gs parses it manually from e.postData.contents.
+  // ---------------------------------------------------------------------
+  async function apiGet(action, params = {}) {
+    const url = new URL(CONFIG.API_URL);
+    url.searchParams.set('action', action);
+    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+    const res = await fetch(url.toString(), { method: 'GET' });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'Request failed');
+    return json;
+  }
+
+  async function apiPost(action, payload = {}) {
+    const res = await fetch(CONFIG.API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action, payload })
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'Request failed');
+    return json;
+  }
+
+  async function refreshData() {
+    setLoading(true);
+    try {
+      const json = await apiGet('getAll');
+      state.inventory = json.inventory || [];
+      state.credits = json.credits || [];
+      document.getElementById('conn-error-banner').classList.add('hidden');
+    } catch (err) {
+      document.getElementById('conn-error-banner').classList.remove('hidden');
+      console.error(err);
+    } finally {
+      setLoading(false);
+      renderAll();
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Tabs
+  // ---------------------------------------------------------------------
+  function switchTab(tab) {
+    state.activeTab = tab;
+    ['inventory', 'credits', 'reports'].forEach(t => {
+      document.getElementById(`section-${t}`).classList.toggle('hidden', t !== tab);
+      const btn = document.querySelector(`.tab-btn[data-tab="${t}"]`);
+      const [borderClass, textClass] = TAB_ACTIVE_CLASSES[t];
+      if (t === tab) {
+        btn.classList.add(borderClass, textClass);
+        btn.classList.remove('border-transparent', 'text-slate-400');
+      } else {
+        btn.classList.remove(borderClass, textClass);
+        btn.classList.add('border-transparent', 'text-slate-400');
+      }
+    });
+  }
+
+  // ---------------------------------------------------------------------
+  // Inventory
+  // ---------------------------------------------------------------------
+  function getFilteredInventory() {
+    const q = document.getElementById('inventory-search').value.trim().toLowerCase();
+    if (!q) return state.inventory;
+    return state.inventory.filter(i =>
+      String(i.name).toLowerCase().includes(q) || String(i.id).toLowerCase().includes(q)
+    );
+  }
+
+  function stockBadgeClasses(stock) {
+    if (stock <= 0) return 'bg-red-100 text-red-700';
+    if (stock <= 5) return 'bg-amber-100 text-amber-700';
+    return 'bg-brand-100 text-brand-700';
+  }
+
+  function renderInventoryTable() {
+    const tbody = document.getElementById('inventory-tbody');
+    const items = getFilteredInventory();
+    if (items.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" class="text-center text-slate-400 py-10 text-sm">No items yet. Add your first item to get started.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = items.map(item => `
+      <tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+        <td class="px-4 py-3 text-xs font-mono text-slate-400">${escapeHtml(item.id)}</td>
+        <td class="px-4 py-3 font-medium text-slate-800">${escapeHtml(item.name)}</td>
+        <td class="px-4 py-3 tabular-nums">${fmtMoney(item.salesPrice)}</td>
+        <td class="px-4 py-3 tabular-nums text-slate-500">${fmtMoney(item.originalPrice)}</td>
+        <td class="px-4 py-3">
+          <span class="px-2 py-0.5 rounded-full text-xs font-semibold tabular-nums ${stockBadgeClasses(item.stock)}">${item.stock}</span>
+        </td>
+        <td class="px-4 py-3 text-right whitespace-nowrap">
+          <button onclick="openItemModal('${item.id}')" title="Edit" class="p-1.5 rounded hover:bg-slate-200 text-slate-500 mr-1">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 6.75L17.25 9" /></svg>
+          </button>
+          <button onclick="handleDeleteItem('${item.id}')" title="Delete" class="p-1.5 rounded hover:bg-red-100 text-red-500">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+          </button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function openItemModal(id = null) {
+    state.editingItemId = id;
+    const item = id ? state.inventory.find(i => i.id === id) : null;
+    document.getElementById('item-modal-title').textContent = item ? 'Edit item' : 'Add item';
+    document.getElementById('item-name').value = item ? item.name : '';
+    document.getElementById('item-sales-price').value = item ? item.salesPrice : '';
+    document.getElementById('item-original-price').value = item ? item.originalPrice : '';
+    document.getElementById('item-stock').value = item ? item.stock : '';
+    document.getElementById('item-modal').classList.remove('hidden');
+  }
+
+  function closeItemModal() {
+    document.getElementById('item-modal').classList.add('hidden');
+    document.getElementById('item-form').reset();
+    state.editingItemId = null;
+  }
+
+  async function handleItemSubmit(e) {
+    e.preventDefault();
+    const payload = {
+      id: state.editingItemId,
+      name: document.getElementById('item-name').value.trim(),
+      salesPrice: parseFloat(document.getElementById('item-sales-price').value),
+      originalPrice: parseFloat(document.getElementById('item-original-price').value),
+      stock: parseInt(document.getElementById('item-stock').value, 10)
+    };
+    const btn = document.getElementById('item-submit-btn');
+    btn.disabled = true;
+    const originalLabel = btn.textContent;
+    btn.textContent = 'Saving…';
+    try {
+      if (state.editingItemId) {
+        await apiPost('updateItem', payload);
+        showToast('Item updated');
+      } else {
+        await apiPost('addItem', payload);
+        showToast('Item added');
+      }
+      closeItemModal();
+      await refreshData();
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+    }
+  }
+
+  async function handleDeleteItem(id) {
+    if (!confirm('Delete this item? This cannot be undone.')) return;
+    try {
+      await apiPost('deleteItem', { id });
+      showToast('Item deleted');
+      await refreshData();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Credits
+  // ---------------------------------------------------------------------
+  function renderProductDropdown() {
+    const select = document.getElementById('credit-product-select');
+    const current = select.value;
+    select.innerHTML = '<option value="">Manual entry (not in inventory)</option>' +
+      state.inventory.map(i =>
+        `<option value="${i.id}" data-price="${i.salesPrice}" data-name="${escapeHtml(i.name)}" data-stock="${i.stock}">${escapeHtml(i.name)} — ${i.stock} in stock</option>`
+      ).join('');
+    select.value = current;
+  }
+
+  function handleProductSelectChange() {
+    const select = document.getElementById('credit-product-select');
+    const opt = select.selectedOptions[0];
+    const manualWrap = document.getElementById('credit-manual-name-wrap');
+    if (select.value) {
+      manualWrap.classList.add('hidden');
+      document.getElementById('credit-price').value = opt.dataset.price;
+    } else {
+      manualWrap.classList.remove('hidden');
+    }
+    updateCreditTotal();
+  }
+
+  function updateCreditTotal() {
+    const price = parseFloat(document.getElementById('credit-price').value) || 0;
+    const qty = parseInt(document.getElementById('credit-quantity').value, 10) || 0;
+    document.getElementById('credit-total-display').textContent = fmtMoney(price * qty);
+  }
+
+  function renderCreditsTable() {
+    const tbody = document.getElementById('credits-tbody');
+    if (state.credits.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" class="text-center text-slate-400 py-10 text-sm">No credit records yet.</td></tr>`;
+      return;
+    }
+    const sorted = [...state.credits].sort((a, b) => new Date(b.date) - new Date(a.date));
+    tbody.innerHTML = sorted.map(c => `
+      <tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+        <td class="px-4 py-3 font-medium text-slate-800">${escapeHtml(c.creditorName)}</td>
+        <td class="px-4 py-3">${escapeHtml(c.productName)}</td>
+        <td class="px-4 py-3 tabular-nums">${fmtMoney(c.price)}</td>
+        <td class="px-4 py-3 tabular-nums">${c.quantity}</td>
+        <td class="px-4 py-3 font-semibold text-amber-700 tabular-nums">${fmtMoney(c.totalCredit)}</td>
+        <td class="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">${fmtDate(c.date)}</td>
+        <td class="px-4 py-3 text-right whitespace-nowrap">
+          <button onclick="handleDeleteCredit('${c.id}')" title="Delete" class="p-1.5 rounded hover:bg-red-100 text-red-500">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+          </button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  function openCreditModal() {
+    document.getElementById('credit-form').reset();
+    document.getElementById('credit-quantity').value = 1;
+    renderProductDropdown();
+    handleProductSelectChange();
+    document.getElementById('credit-modal').classList.remove('hidden');
+  }
+
+  function closeCreditModal() {
+    document.getElementById('credit-modal').classList.add('hidden');
+  }
+
+  async function handleCreditSubmit(e) {
+    e.preventDefault();
+    const select = document.getElementById('credit-product-select');
+    const productId = select.value || null;
+    const productName = productId
+      ? select.selectedOptions[0].dataset.name
+      : document.getElementById('credit-manual-name').value.trim();
+    const price = parseFloat(document.getElementById('credit-price').value);
+    const quantity = parseInt(document.getElementById('credit-quantity').value, 10);
+
+    if (!productName) {
+      showToast('Enter a product name', 'error');
+      return;
+    }
+    if (productId) {
+      const item = state.inventory.find(i => i.id === productId);
+      if (item && quantity > item.stock) {
+        showToast(`Only ${item.stock} in stock for ${item.name}`, 'error');
+        return;
+      }
+    }
+
+    const payload = {
+      creditorName: document.getElementById('credit-creditor-name').value.trim(),
+      productId, productName, price, quantity
+    };
+    const btn = document.getElementById('credit-submit-btn');
+    btn.disabled = true;
+    const originalLabel = btn.textContent;
+    btn.textContent = 'Saving…';
+    try {
+      await apiPost('addCredit', payload);
+      showToast('Credit recorded');
+      closeCreditModal();
+      await refreshData();
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+    }
+  }
+
+  async function handleDeleteCredit(id) {
+    if (!confirm('Delete this credit record? Stock is not automatically restored.')) return;
+    try {
+      await apiPost('deleteCredit', { id });
+      showToast('Credit record deleted');
+      await refreshData();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Reports
+  // ---------------------------------------------------------------------
+  function renderReports() {
+    const inventoryValue = state.inventory.reduce((sum, i) => sum + (Number(i.originalPrice) || 0) * (Number(i.stock) || 0), 0);
+    const potentialRevenue = state.inventory.reduce((sum, i) => sum + (Number(i.salesPrice) || 0) * (Number(i.stock) || 0), 0);
+    const outstandingCredits = state.credits.reduce((sum, c) => sum + (Number(c.totalCredit) || 0), 0);
+    const grossProfit = potentialRevenue - inventoryValue;
+
+    document.getElementById('metric-inventory-value').textContent = fmtMoney(inventoryValue);
+    document.getElementById('metric-potential-revenue').textContent = fmtMoney(potentialRevenue);
+    document.getElementById('metric-outstanding-credits').textContent = fmtMoney(outstandingCredits);
+    document.getElementById('metric-gross-profit').textContent = fmtMoney(grossProfit);
+    document.getElementById('metric-item-count').textContent = state.inventory.length;
+    document.getElementById('metric-credit-count').textContent = state.credits.length;
+  }
+
+  // ---------------------------------------------------------------------
+  // Init
+  // ---------------------------------------------------------------------
+  function renderAll() {
+    renderInventoryTable();
+    renderCreditsTable();
+    renderReports();
+    renderProductDropdown();
+  }
+
+  function bindEvents() {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+    document.getElementById('refresh-btn').addEventListener('click', refreshData);
+    document.getElementById('retry-btn').addEventListener('click', refreshData);
+    document.getElementById('add-item-btn').addEventListener('click', () => openItemModal());
+    document.getElementById('add-credit-btn').addEventListener('click', openCreditModal);
+    document.getElementById('inventory-search').addEventListener('input', renderInventoryTable);
+  }
+
+  async function init() {
+    bindEvents();
+    switchTab('inventory');
+    if (!isConfigured()) {
+      document.getElementById('config-banner').classList.remove('hidden');
+      renderAll();
+      return;
+    }
+    await refreshData();
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
