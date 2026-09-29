@@ -264,32 +264,18 @@
           class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 outline-none" />
       </div>
       <div>
-        <label class="block text-sm font-medium text-slate-700 mb-1">Product</label>
-        <select id="credit-product-select" onchange="handleProductSelectChange()"
-          class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 outline-none">
-          <option value="">Manual entry (not in inventory)</option>
-        </select>
-      </div>
-      <div id="credit-manual-name-wrap">
-        <label class="block text-sm font-medium text-slate-700 mb-1">Product name</label>
-        <input id="credit-manual-name" placeholder="Product name"
-          class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 outline-none" />
-      </div>
-      <div class="grid grid-cols-2 gap-4">
-        <div>
-          <label class="block text-sm font-medium text-slate-700 mb-1">Unit price</label>
-          <input id="credit-price" type="number" step="0.01" min="0" required oninput="updateCreditTotal()"
-            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 outline-none" />
+        <div class="flex items-center justify-between mb-1.5">
+          <label class="block text-sm font-medium text-slate-700">Products</label>
+          <button type="button" id="add-credit-line-btn" class="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 hover:text-amber-800">
+            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+            Add product
+          </button>
         </div>
-        <div>
-          <label class="block text-sm font-medium text-slate-700 mb-1">Quantity</label>
-          <input id="credit-quantity" type="number" step="1" min="1" value="1" required oninput="updateCreditTotal()"
-            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 outline-none" />
-        </div>
+        <div id="credit-lines-container" class="space-y-2.5"></div>
       </div>
       <div class="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 flex items-center justify-between">
-        <span class="text-sm text-amber-800">Total credit</span>
-        <span id="credit-total-display" class="text-lg font-bold text-amber-800 tabular-nums">₱0.00</span>
+        <span class="text-sm text-amber-800">Grand total</span>
+        <span id="credit-grand-total-display" class="text-lg font-bold text-amber-800 tabular-nums">₱0.00</span>
       </div>
       <div class="flex gap-3 pt-2">
         <button type="button" onclick="closeCreditModal()" class="flex-1 px-4 py-2.5 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition">Cancel</button>
@@ -654,33 +640,71 @@
   // ---------------------------------------------------------------------
   // Credits
   // ---------------------------------------------------------------------
-  function renderProductDropdown() {
-    const select = document.getElementById('credit-product-select');
-    const current = select.value;
-    select.innerHTML = '<option value="">Manual entry (not in inventory)</option>' +
-      state.inventory.map(i =>
-        `<option value="${i.id}" data-price="${i.salesPrice}" data-name="${escapeHtml(i.name)}" data-stock="${i.stock}">${escapeHtml(i.name)} — ${i.stock} in stock</option>`
-      ).join('');
-    select.value = current;
+  /** Builds <option> markup for every inventory item, reused by each cart line's product select. */
+  function buildProductOptionsHtml() {
+    return state.inventory.map(i =>
+      `<option value="${i.id}" data-price="${i.salesPrice}" data-name="${escapeAttr(i.name)}" data-stock="${i.stock}">${escapeHtml(i.name)} — ${i.stock} in stock</option>`
+    ).join('');
   }
 
-  function handleProductSelectChange() {
-    const select = document.getElementById('credit-product-select');
-    const opt = select.selectedOptions[0];
-    const manualWrap = document.getElementById('credit-manual-name-wrap');
-    if (select.value) {
-      manualWrap.classList.add('hidden');
-      document.getElementById('credit-price').value = opt.dataset.price;
-    } else {
-      manualWrap.classList.remove('hidden');
-    }
-    updateCreditTotal();
+  let creditLineCounter = 0;
+
+  function creditLineRowHtml(lineId) {
+    return `
+    <div class="credit-line border border-slate-200 rounded-lg p-3 space-y-2" data-line-id="${lineId}">
+      <div class="flex items-start gap-2">
+        <select class="credit-line-product flex-1 rounded-lg border border-slate-300 px-2.5 py-2 text-sm bg-white focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 outline-none">
+          <option value="">Manual entry (not in inventory)</option>
+          ${buildProductOptionsHtml()}
+        </select>
+        <button type="button" class="credit-line-remove p-2 rounded hover:bg-red-100 text-red-400 shrink-0" title="Remove product">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+        </button>
+      </div>
+      <input type="text" class="credit-line-manual-name hidden w-full rounded-lg border border-slate-300 px-2.5 py-2 text-sm focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 outline-none" placeholder="Product name" />
+      <div class="grid grid-cols-3 gap-2 items-center">
+        <input type="number" step="0.01" min="0" placeholder="Unit price" class="credit-line-price w-full rounded-lg border border-slate-300 px-2.5 py-2 text-sm focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 outline-none" />
+        <input type="number" step="1" min="1" value="1" placeholder="Qty" class="credit-line-qty w-full rounded-lg border border-slate-300 px-2.5 py-2 text-sm focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 outline-none" />
+        <div class="credit-line-total text-right text-sm font-semibold text-slate-700 tabular-nums">₱0.00</div>
+      </div>
+    </div>`;
   }
 
-  function updateCreditTotal() {
-    const price = parseFloat(document.getElementById('credit-price').value) || 0;
-    const qty = parseInt(document.getElementById('credit-quantity').value, 10) || 0;
-    document.getElementById('credit-total-display').textContent = fmtMoney(price * qty);
+  function addCreditLine() {
+    creditLineCounter++;
+    document.getElementById('credit-lines-container').insertAdjacentHTML('beforeend', creditLineRowHtml(creditLineCounter));
+    updateRemoveButtonsState();
+  }
+
+  function removeCreditLine(lineEl) {
+    lineEl.remove();
+    updateRemoveButtonsState();
+    updateGrandTotal();
+  }
+
+  /** Keeps at least one product line in the cart by hiding the remove button on the last one. */
+  function updateRemoveButtonsState() {
+    const lines = document.querySelectorAll('#credit-lines-container .credit-line');
+    lines.forEach(line => {
+      line.querySelector('.credit-line-remove').classList.toggle('invisible', lines.length <= 1);
+    });
+  }
+
+  function updateLineTotal(lineEl) {
+    const price = parseFloat(lineEl.querySelector('.credit-line-price').value) || 0;
+    const qty = parseInt(lineEl.querySelector('.credit-line-qty').value, 10) || 0;
+    lineEl.querySelector('.credit-line-total').textContent = fmtMoney(price * qty);
+    updateGrandTotal();
+  }
+
+  function updateGrandTotal() {
+    let grand = 0;
+    document.querySelectorAll('#credit-lines-container .credit-line').forEach(lineEl => {
+      const price = parseFloat(lineEl.querySelector('.credit-line-price').value) || 0;
+      const qty = parseInt(lineEl.querySelector('.credit-line-qty').value, 10) || 0;
+      grand += price * qty;
+    });
+    document.getElementById('credit-grand-total-display').textContent = fmtMoney(grand);
   }
 
   /** Groups individual credit records by (trimmed, case-insensitive) creditor name. */
@@ -753,9 +777,10 @@
 
   function openCreditModal() {
     document.getElementById('credit-form').reset();
-    document.getElementById('credit-quantity').value = 1;
-    renderProductDropdown();
-    handleProductSelectChange();
+    document.getElementById('credit-lines-container').innerHTML = '';
+    creditLineCounter = 0;
+    addCreditLine();
+    updateGrandTotal();
     document.getElementById('credit-modal').classList.remove('hidden');
   }
 
@@ -765,37 +790,57 @@
 
   async function handleCreditSubmit(e) {
     e.preventDefault();
-    const select = document.getElementById('credit-product-select');
-    const productId = select.value || null;
-    const productName = productId
-      ? select.selectedOptions[0].dataset.name
-      : document.getElementById('credit-manual-name').value.trim();
-    const price = parseFloat(document.getElementById('credit-price').value);
-    const quantity = parseInt(document.getElementById('credit-quantity').value, 10);
+    const creditorName = document.getElementById('credit-creditor-name').value.trim();
+    const lineEls = Array.from(document.querySelectorAll('#credit-lines-container .credit-line'));
 
-    if (!productName) {
-      showToast('Enter a product name', 'error');
+    const items = [];
+    for (const lineEl of lineEls) {
+      const select = lineEl.querySelector('.credit-line-product');
+      const productId = select.value || null;
+      const productName = productId
+        ? select.selectedOptions[0].dataset.name
+        : lineEl.querySelector('.credit-line-manual-name').value.trim();
+      const price = parseFloat(lineEl.querySelector('.credit-line-price').value);
+      const quantity = parseInt(lineEl.querySelector('.credit-line-qty').value, 10);
+
+      if (!productName) {
+        showToast('Enter a product name for every product line', 'error');
+        return;
+      }
+      if (!(price >= 0) || !(quantity > 0)) {
+        showToast('Enter a valid price and quantity for every product line', 'error');
+        return;
+      }
+      items.push({ productId, productName, price, quantity });
+    }
+
+    if (items.length === 0) {
+      showToast('Add at least one product', 'error');
       return;
     }
-    if (productId) {
-      const item = state.inventory.find(i => i.id === productId);
-      if (item && quantity > item.stock) {
-        showToast(`Only ${item.stock} in stock for ${item.name}`, 'error');
+
+    // The same product can appear on more than one line, so sum requested
+    // quantity per product across the whole cart before checking stock.
+    const qtyByProductId = {};
+    items.forEach(item => {
+      if (!item.productId) return;
+      qtyByProductId[item.productId] = (qtyByProductId[item.productId] || 0) + item.quantity;
+    });
+    for (const productId of Object.keys(qtyByProductId)) {
+      const invItem = state.inventory.find(i => i.id === productId);
+      if (invItem && qtyByProductId[productId] > invItem.stock) {
+        showToast(`Only ${invItem.stock} in stock for ${invItem.name}`, 'error');
         return;
       }
     }
 
-    const payload = {
-      creditorName: document.getElementById('credit-creditor-name').value.trim(),
-      productId, productName, price, quantity
-    };
     const btn = document.getElementById('credit-submit-btn');
     btn.disabled = true;
     const originalLabel = btn.textContent;
     btn.textContent = 'Saving…';
     try {
-      await apiPost('addCredit', payload);
-      showToast('Credit recorded');
+      await apiPost('addCreditBatch', { creditorName, items });
+      showToast(items.length > 1 ? `Recorded ${items.length} products for ${creditorName}` : 'Credit recorded');
       closeCreditModal();
       await refreshData();
     } catch (err) {
@@ -841,7 +886,6 @@
     renderInventoryTable();
     renderCreditsTable();
     renderReports();
-    renderProductDropdown();
   }
 
   function bindEvents() {
@@ -858,6 +902,31 @@
       const row = e.target.closest('.creditor-group-row');
       if (!row) return;
       toggleCreditorGroup(row.dataset.creditorKey);
+    });
+
+    document.getElementById('add-credit-line-btn').addEventListener('click', addCreditLine);
+    const linesContainer = document.getElementById('credit-lines-container');
+    linesContainer.addEventListener('change', (e) => {
+      if (!e.target.classList.contains('credit-line-product')) return;
+      const lineEl = e.target.closest('.credit-line');
+      const opt = e.target.selectedOptions[0];
+      const manualInput = lineEl.querySelector('.credit-line-manual-name');
+      if (e.target.value) {
+        manualInput.classList.add('hidden');
+        lineEl.querySelector('.credit-line-price').value = opt.dataset.price;
+      } else {
+        manualInput.classList.remove('hidden');
+      }
+      updateLineTotal(lineEl);
+    });
+    linesContainer.addEventListener('input', (e) => {
+      if (e.target.classList.contains('credit-line-price') || e.target.classList.contains('credit-line-qty')) {
+        updateLineTotal(e.target.closest('.credit-line'));
+      }
+    });
+    linesContainer.addEventListener('click', (e) => {
+      const removeBtn = e.target.closest('.credit-line-remove');
+      if (removeBtn) removeCreditLine(removeBtn.closest('.credit-line'));
     });
   }
 
