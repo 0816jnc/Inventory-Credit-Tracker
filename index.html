@@ -78,6 +78,7 @@
   <nav class="max-w-6xl mx-auto px-4 sm:px-6 mt-3 flex gap-5 overflow-x-auto">
     <button data-tab="inventory" class="tab-btn whitespace-nowrap pb-2.5 text-sm font-semibold border-b-2 border-transparent text-slate-400 transition">Inventory</button>
     <button data-tab="credits" class="tab-btn whitespace-nowrap pb-2.5 text-sm font-semibold border-b-2 border-transparent text-slate-400 transition">Credits</button>
+    <button data-tab="checkout" class="tab-btn whitespace-nowrap pb-2.5 text-sm font-semibold border-b-2 border-transparent text-slate-400 transition">Checkout</button>
     <button data-tab="reports" class="tab-btn whitespace-nowrap pb-2.5 text-sm font-semibold border-b-2 border-transparent text-slate-400 transition">Reports</button>
   </nav>
 </header>
@@ -163,12 +164,50 @@
     </div>
   </section>
 
+  <!-- ============ CHECKOUT ============ -->
+  <section id="section-checkout" class="hidden max-w-6xl mx-auto px-4 sm:px-6 py-6 pb-28 lg:pb-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+      <div class="lg:col-span-2">
+        <div class="mb-4">
+          <h2 class="text-lg font-bold text-slate-900">Checkout</h2>
+          <p class="text-xs text-slate-400">Tap a product to add it to the cart. A checkout deducts stock and is recorded in earnings.</p>
+        </div>
+        <div class="relative mb-4">
+          <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 104.35 4.35a7.5 7.5 0 0012.3 12.3z" /></svg>
+          <input id="checkout-search" type="text" placeholder="Search products"
+            class="w-full pl-9 pr-3 py-2.5 rounded-lg border border-slate-300 text-sm bg-white focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 outline-none" />
+        </div>
+        <div id="checkout-products" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
+      </div>
+
+      <aside id="checkout-cart-panel" class="bg-white rounded-lg border border-slate-200 scroll-mt-32 lg:sticky lg:top-28">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-slate-200">
+          <h3 class="text-base font-bold text-slate-900">Cart</h3>
+          <button id="checkout-clear-btn" type="button" class="text-xs text-slate-400 hover:text-red-600 underline underline-offset-2">Clear</button>
+        </div>
+        <div id="checkout-cart" class="divide-y divide-slate-100"></div>
+        <div class="px-4 py-4 border-t border-slate-200">
+          <div class="flex items-center justify-between mb-3">
+            <span class="text-sm text-slate-500">Total</span>
+            <span id="checkout-total" class="text-2xl font-extrabold text-slate-900 tabular-nums">₱0.00</span>
+          </div>
+          <button id="checkout-btn" type="button" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold py-3 rounded-lg transition disabled:opacity-40 disabled:cursor-not-allowed">Checkout</button>
+        </div>
+      </aside>
+    </div>
+  </section>
+
   <!-- ============ REPORTS ============ -->
   <section id="section-reports" class="hidden max-w-6xl mx-auto px-4 sm:px-6 py-6">
     <h2 class="text-lg font-bold text-slate-900 mb-1">Reports</h2>
-    <p class="text-xs text-slate-400 mb-5">Live figures computed from your current inventory and credit records.</p>
+    <p class="text-xs text-slate-400 mb-5">Live figures from your inventory, credits, and earnings.</p>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div class="sm:col-span-2 bg-white rounded-lg border border-slate-200 border-l-4 border-l-emerald-600 p-5">
+        <p class="text-sm text-slate-500">Total earnings</p>
+        <p id="metric-total-earnings" class="text-4xl font-extrabold text-emerald-700 mt-2 tabular-nums">₱0.00</p>
+        <p id="metric-earnings-split" class="text-xs text-slate-400 mt-1.5">Checkout ₱0.00, credit payments ₱0.00</p>
+      </div>
       <div class="bg-white rounded-lg border border-slate-200 border-l-4 border-l-slate-400 p-5">
         <p class="text-sm text-slate-500">Total inventory value (cost)</p>
         <p id="metric-inventory-value" class="text-3xl font-extrabold text-slate-900 mt-2 tabular-nums">₱0.00</p>
@@ -199,6 +238,28 @@
       <div class="bg-white rounded-lg border border-slate-200 p-4 text-center">
         <p id="metric-credit-count" class="text-xl font-bold text-slate-800 tabular-nums">0</p>
         <p class="text-xs text-slate-400">Credit records</p>
+      </div>
+    </div>
+
+    <div class="mt-8">
+      <div class="flex items-end justify-between gap-3 mb-2">
+        <h3 class="text-base font-bold text-slate-900">Earnings records</h3>
+        <p id="earnings-count-note" class="text-xs text-slate-400"></p>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-slate-200 text-slate-500 text-xs">
+                <th class="px-4 py-3 text-left font-medium">Date</th>
+                <th class="px-4 py-3 text-left font-medium">Source</th>
+                <th class="px-4 py-3 text-left font-medium">Details</th>
+                <th class="px-4 py-3 text-right font-medium">Amount</th>
+              </tr>
+            </thead>
+            <tbody id="earnings-tbody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </section>
@@ -327,7 +388,16 @@
 </div>
 
 <!-- Toasts -->
-<div id="toast-container" class="fixed bottom-4 right-4 z-[60] flex flex-col gap-2 items-end"></div>
+<!-- Sticky cart summary for phones/tablets (the cart itself sits below the products) -->
+<div id="checkout-bar" class="hidden lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 px-4 py-3 flex items-center justify-between gap-3">
+  <div class="leading-tight">
+    <p id="checkout-bar-count" class="text-xs text-slate-500">0 items</p>
+    <p id="checkout-bar-total" class="text-lg font-bold text-slate-900 tabular-nums">₱0.00</p>
+  </div>
+  <button id="checkout-bar-btn" type="button" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition">View cart</button>
+</div>
+
+<div id="toast-container" class="fixed bottom-20 lg:bottom-4 right-4 z-[60] flex flex-col gap-2 items-end"></div>
 
 <script>
   // ---------------------------------------------------------------------
@@ -341,6 +411,7 @@
   const TAB_ACTIVE_CLASSES = {
     inventory: ['border-slate-700', 'text-slate-800'],
     credits:   ['border-amber-600', 'text-amber-700'],
+    checkout:  ['border-emerald-600', 'text-emerald-700'],
     reports:   ['border-brand-600', 'text-brand-700']
   };
 
@@ -350,7 +421,12 @@
     activeTab: 'inventory',
     editingItemId: null,
     inventorySort: { key: 'default', dir: 'desc' }, // default = newest added first
-    expandedCreditors: new Set()
+    expandedCreditors: new Set(),
+    earnings: [],                                    // latest earnings rows (server sends the most recent 300)
+    earningsSummary: emptyEarningsSummary(),         // all-time totals, from the server
+    cart: [],                                        // checkout cart: [{ productId, quantity }]
+    checkingOut: false,
+    pendingCredits: new Set()                        // credit lines with a paid/unpaid request in flight
   };
 
   const LOCAL_CACHE_KEY = 'ict_cache_v1';
@@ -437,23 +513,36 @@
     return json;
   }
 
+  let refreshSeq = 0;
+
   async function refreshData() {
+    // A refresh fires after every save, so several can be in flight at once.
+    // Only the most recently started one may touch the screen — otherwise a
+    // slow, older response (read before your latest change landed) could
+    // arrive last and overwrite newer data.
+    const mySeq = ++refreshSeq;
     setLoading(true);
     try {
       const json = await apiGet('getAll');
+      if (mySeq !== refreshSeq) return;
       // _idx preserves fetch order (= sheet row order = insertion order), so
       // the "newest first" default sort can work without needing a
       // created-at column in the Inventory tab.
       state.inventory = (json.inventory || []).map((item, idx) => ({ ...item, _idx: idx }));
       state.credits = json.credits || [];
+      state.earnings = json.earnings || [];
+      state.earningsSummary = json.earningsSummary || emptyEarningsSummary();
       document.getElementById('conn-error-banner').classList.add('hidden');
       saveLocalCache();
     } catch (err) {
+      if (mySeq !== refreshSeq) return;
       document.getElementById('conn-error-banner').classList.remove('hidden');
       console.error(err);
     } finally {
-      setLoading(false);
-      renderAll();
+      if (mySeq === refreshSeq) {
+        setLoading(false);
+        renderAll();
+      }
     }
   }
 
@@ -479,7 +568,9 @@
     try {
       localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify({
         inventory: state.inventory,
-        credits: state.credits
+        credits: state.credits,
+        earnings: state.earnings,
+        earningsSummary: state.earningsSummary
       }));
     } catch (err) {
       // localStorage unavailable/full — purely a perf nicety, safe to skip
@@ -500,7 +591,7 @@
   // ---------------------------------------------------------------------
   function switchTab(tab) {
     state.activeTab = tab;
-    ['inventory', 'credits', 'reports'].forEach(t => {
+    ['inventory', 'credits', 'checkout', 'reports'].forEach(t => {
       document.getElementById(`section-${t}`).classList.toggle('hidden', t !== tab);
       const btn = document.querySelector(`.tab-btn[data-tab="${t}"]`);
       const [borderClass, textClass] = TAB_ACTIVE_CLASSES[t];
@@ -512,6 +603,7 @@
         btn.classList.add('border-transparent', 'text-slate-400');
       }
     });
+    updateCheckoutBar();
   }
 
   // ---------------------------------------------------------------------
@@ -721,7 +813,7 @@
           <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
       </div>
-      <input type="text" class="credit-line-manual-name hidden w-full rounded-lg border border-slate-300 px-2.5 py-2 text-sm focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 outline-none" placeholder="Product name" />
+      <input type="text" class="credit-line-manual-name w-full rounded-lg border border-slate-300 px-2.5 py-2 text-sm focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 outline-none" placeholder="Type the product name" />
       <div class="grid grid-cols-3 gap-2 items-center">
         <input type="number" step="0.01" min="0" placeholder="Unit price" class="credit-line-price w-full rounded-lg border border-slate-300 px-2.5 py-2 text-sm focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 outline-none" />
         <input type="number" step="1" min="1" value="1" placeholder="Qty" class="credit-line-qty w-full rounded-lg border border-slate-300 px-2.5 py-2 text-sm focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 outline-none" />
@@ -838,10 +930,12 @@
           <td class="px-4 py-2.5 tabular-nums ${strike}">${fmtMoney(c.totalCredit)}</td>
           <td class="px-4 py-2.5 text-xs whitespace-nowrap">${fmtDate(c.date)}</td>
           <td class="px-4 py-2.5 text-right whitespace-nowrap">
-            <button onclick="handleToggleCreditPaid('${c.id}', '${isPaid ? 'unpaid' : 'paid'}')" title="${isPaid ? 'Mark as unpaid' : 'Mark as paid'}" class="p-1.5 rounded hover:bg-emerald-100 ${isPaid ? 'text-emerald-600' : 'text-slate-400'} mr-1">
+            <button onclick="handleToggleCreditPaid('${c.id}', '${isPaid ? 'unpaid' : 'paid'}', this)" title="${isPaid ? 'Mark as unpaid' : 'Mark as paid'}" class="p-1.5 rounded hover:bg-emerald-100 ${isPaid ? 'text-emerald-600' : 'text-slate-400'} mr-1">
               <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
             </button>
-            <button onclick="openEditCreditModal('${c.id}')" title="Edit" class="p-1.5 rounded hover:bg-slate-200 text-slate-500 mr-1">
+            ${isPaid
+              ? `<button type="button" disabled title="Mark as unpaid to edit this line" class="p-1.5 rounded text-slate-300 cursor-not-allowed mr-1">`
+              : `<button onclick="openEditCreditModal('${c.id}')" title="Edit" class="p-1.5 rounded hover:bg-slate-200 text-slate-500 mr-1">`}
               <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 6.75L17.25 9" /></svg>
             </button>
             <button onclick="handleDeleteCredit('${c.id}')" title="Delete" class="p-1.5 rounded hover:bg-red-100 text-red-500">
@@ -953,11 +1047,15 @@
   }
 
   async function handleDeleteCredit(id) {
-    if (!confirm('Delete this credit record? Any linked inventory stock will be restored.')) return;
+    const credit = state.credits.find(c => c.id === id);
+    const wasPaid = !!credit && credit.status === 'paid';
+    const message = wasPaid
+      ? 'This line is already paid. Deleting it removes it from the list, but its earning stays recorded and stock is not restored. Continue?'
+      : 'Delete this credit record? Any linked inventory stock will be restored.';
+    if (!confirm(message)) return;
     try {
       await apiPost('deleteCredit', { id });
-      const credit = state.credits.find(c => c.id === id);
-      if (credit && credit.productId) {
+      if (credit && credit.productId && !wasPaid) {
         const invItem = state.inventory.find(i => i.id === credit.productId);
         if (invItem) invItem.stock += credit.quantity;
       }
@@ -1047,17 +1145,31 @@
     }
   }
 
-  async function handleToggleCreditPaid(id, newStatus) {
+  async function handleToggleCreditPaid(id, newStatus, btn) {
+    if (state.pendingCredits.has(id)) return; // ignore double-clicks while a request is in flight
+    state.pendingCredits.add(id);
+    if (btn) { btn.disabled = true; btn.classList.add('opacity-40'); }
     try {
-      await apiPost('updateCreditStatus', { id, status: newStatus });
+      const result = await apiPost('updateCreditStatus', { id, status: newStatus });
       const credit = state.credits.find(c => c.id === id);
       if (credit) credit.status = newStatus;
-      showToast(newStatus === 'paid' ? 'Marked as paid' : 'Marked as unpaid');
+      const removed = result.data.removed || [];
+      removed.forEach(applyEarningRemove);
+      applyEarningAdd(result.data.earning);
+      if (newStatus === 'paid') {
+        showToast(result.data.earning ? `Paid: ${fmtMoney(result.data.earning.amount)} added to earnings` : 'Marked as paid');
+      } else {
+        const undone = removed.reduce((sum, r) => sum + r.amount, 0);
+        showToast(undone ? `Marked as unpaid: ${fmtMoney(undone)} removed from earnings` : 'Marked as unpaid');
+      }
       renderAll();
       saveLocalCache();
       refreshData();
     } catch (err) {
       showToast(err.message, 'error');
+      if (btn) { btn.disabled = false; btn.classList.remove('opacity-40'); }
+    } finally {
+      state.pendingCredits.delete(id);
     }
   }
 
@@ -1076,6 +1188,242 @@
     document.getElementById('metric-gross-profit').textContent = fmtMoney(grossProfit);
     document.getElementById('metric-item-count').textContent = state.inventory.length;
     document.getElementById('metric-credit-count').textContent = state.credits.length;
+
+    const earned = state.earningsSummary;
+    document.getElementById('metric-total-earnings').textContent = fmtMoney(earned.total);
+    document.getElementById('metric-earnings-split').textContent =
+      `Checkout ${fmtMoney(earned.checkout)}, credit payments ${fmtMoney(earned.credit)}`;
+    renderEarningsTable();
+  }
+
+  // ---------------------------------------------------------------------
+  // Earnings
+  //
+  // The server records one earning per paid credit line and one per
+  // checkout, and sends the latest 300 plus all-time totals. These helpers
+  // mirror a change locally the moment a save succeeds, so Reports updates
+  // instantly; the background refresh afterward confirms it.
+  // ---------------------------------------------------------------------
+  function emptyEarningsSummary() {
+    return { total: 0, checkout: 0, credit: 0, count: 0 };
+  }
+
+  function round2(n) {
+    return Math.round((Number(n) || 0) * 100) / 100;
+  }
+
+  function applyEarningAdd(e) {
+    if (!e) return;
+    state.earnings.push(e);
+    const s = state.earningsSummary;
+    s.total = round2(s.total + e.amount);
+    if (e.source === 'Checkout') s.checkout = round2(s.checkout + e.amount);
+    else s.credit = round2(s.credit + e.amount);
+    s.count += 1;
+  }
+
+  /** r = { id, source, amount } as returned by the server for a removed earning. */
+  function applyEarningRemove(r) {
+    const idx = state.earnings.findIndex(x => x.id === r.id);
+    if (idx !== -1) state.earnings.splice(idx, 1);
+    const s = state.earningsSummary;
+    s.total = round2(s.total - r.amount);
+    if (r.source === 'Checkout') s.checkout = round2(s.checkout - r.amount);
+    else s.credit = round2(s.credit - r.amount);
+    s.count = Math.max(0, s.count - 1);
+  }
+
+  function renderEarningsTable() {
+    const tbody = document.getElementById('earnings-tbody');
+    const note = document.getElementById('earnings-count-note');
+    if (state.earnings.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="4" class="text-center text-slate-400 py-10 text-sm">No earnings yet. Checkouts and paid credits will show up here.</td></tr>`;
+      note.textContent = '';
+      return;
+    }
+    const rows = [...state.earnings].sort((a, b) => new Date(b.date) - new Date(a.date));
+    const total = Math.max(state.earningsSummary.count, rows.length);
+    note.textContent = total > rows.length
+      ? `Latest ${rows.length} of ${total} records`
+      : `${total} record${total === 1 ? '' : 's'}`;
+    tbody.innerHTML = rows.map(e => {
+      const badge = e.source === 'Checkout' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700';
+      return `
+      <tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+        <td class="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">${fmtDate(e.date)}</td>
+        <td class="px-4 py-3 whitespace-nowrap"><span class="px-2 py-0.5 rounded-full text-xs font-semibold ${badge}">${escapeHtml(e.source)}</span></td>
+        <td class="px-4 py-3 text-slate-700">${escapeHtml(e.description)}</td>
+        <td class="px-4 py-3 text-right font-semibold text-emerald-700 tabular-nums whitespace-nowrap">${fmtMoney(e.amount)}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ---------------------------------------------------------------------
+  // Checkout
+  //
+  // A cart of inventory items. The cart only stores { productId, quantity };
+  // names, prices and stock are always read live from state.inventory, so
+  // the cart can never show a stale price. The server re-checks stock and
+  // uses the sheet's prices when it records the sale.
+  // ---------------------------------------------------------------------
+  function getCartLines() {
+    return state.cart
+      .map(line => {
+        const item = state.inventory.find(i => i.id === line.productId);
+        return item ? { productId: line.productId, quantity: line.quantity, item } : null;
+      })
+      .filter(Boolean);
+  }
+
+  function cartQty(productId) {
+    const line = state.cart.find(l => l.productId === productId);
+    return line ? line.quantity : 0;
+  }
+
+  function cartTotal() {
+    return getCartLines().reduce((sum, l) => sum + (Number(l.item.salesPrice) || 0) * l.quantity, 0);
+  }
+
+  function setCartQty(productId, qty) {
+    const item = state.inventory.find(i => i.id === productId);
+    if (!item) return;
+    qty = Math.floor(Number(qty) || 0);
+    if (qty > item.stock) {
+      qty = item.stock;
+      showToast(`Only ${item.stock} in stock for ${item.name}`, 'error');
+    }
+    const line = state.cart.find(l => l.productId === productId);
+    if (qty <= 0) state.cart = state.cart.filter(l => l.productId !== productId);
+    else if (line) line.quantity = qty;
+    else state.cart.push({ productId, quantity: qty });
+    renderCheckout();
+  }
+
+  function addToCart(productId) {
+    setCartQty(productId, cartQty(productId) + 1);
+  }
+
+  function renderCheckout() {
+    // Forget cart lines whose product has since been deleted.
+    state.cart = state.cart.filter(l => state.inventory.some(i => i.id === l.productId));
+
+    const query = document.getElementById('checkout-search').value.trim().toLowerCase();
+    const products = state.inventory
+      .filter(i => !query || String(i.name).toLowerCase().includes(query))
+      .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+
+    const grid = document.getElementById('checkout-products');
+    if (products.length === 0) {
+      grid.innerHTML = `<p class="col-span-full text-center text-slate-400 py-10 text-sm">${
+        state.inventory.length === 0 ? 'No products yet. Add items in the Inventory tab first.' : 'No products match your search.'
+      }</p>`;
+    } else {
+      grid.innerHTML = products.map(item => {
+        const inCart = cartQty(item.id);
+        const out = item.stock <= 0;
+        const maxed = !out && inCart >= item.stock;
+        return `
+        <button type="button" data-product-id="${escapeAttr(item.id)}" ${out || maxed ? 'disabled' : ''}
+          class="checkout-product text-left bg-white border ${inCart ? 'border-emerald-500' : 'border-slate-200'} rounded-lg p-3 transition hover:border-emerald-500 hover:bg-emerald-50/40 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white">
+          <span class="block text-sm font-semibold text-slate-800 line-clamp-2 min-h-[2.5rem]">${escapeHtml(item.name)}</span>
+          <span class="mt-2 flex items-baseline justify-between gap-2">
+            <span class="font-bold text-slate-900 tabular-nums">${fmtMoney(item.salesPrice)}</span>
+            <span class="text-xs tabular-nums ${out ? 'text-red-600 font-semibold' : 'text-slate-400'}">${out ? 'Out of stock' : item.stock + ' left'}</span>
+          </span>
+          ${inCart ? `<span class="mt-1.5 inline-block text-xs font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">${inCart} in cart</span>` : ''}
+        </button>`;
+      }).join('');
+    }
+
+    const lines = getCartLines();
+    const cartEl = document.getElementById('checkout-cart');
+    if (lines.length === 0) {
+      cartEl.innerHTML = `<p class="px-4 py-10 text-center text-sm text-slate-400">The cart is empty. Tap a product to add it.</p>`;
+    } else {
+      cartEl.innerHTML = lines.map(l => {
+        const price = Number(l.item.salesPrice) || 0;
+        const id = escapeAttr(l.productId);
+        return `
+        <div class="px-4 py-3">
+          <div class="flex items-start justify-between gap-2">
+            <div class="min-w-0">
+              <p class="text-sm font-medium text-slate-800 truncate">${escapeHtml(l.item.name)}</p>
+              <p class="text-xs text-slate-400 tabular-nums">${fmtMoney(price)} each</p>
+            </div>
+            <button type="button" data-product-id="${id}" title="Remove" class="cart-remove p-1 rounded text-slate-400 hover:bg-red-100 hover:text-red-500 shrink-0">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          </div>
+          <div class="mt-2 flex items-center justify-between">
+            <div class="flex items-center gap-1">
+              <button type="button" data-product-id="${id}" title="One less" class="cart-dec w-8 h-8 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50">−</button>
+              <input type="number" min="1" step="1" value="${l.quantity}" data-product-id="${id}" class="cart-qty w-14 h-8 text-center rounded-lg border border-slate-300 text-sm tabular-nums focus:ring-2 focus:ring-emerald-600/30 focus:border-emerald-600 outline-none" />
+              <button type="button" data-product-id="${id}" title="One more" class="cart-inc w-8 h-8 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50">+</button>
+            </div>
+            <p class="text-sm font-semibold text-slate-900 tabular-nums">${fmtMoney(price * l.quantity)}</p>
+          </div>
+          ${l.quantity > l.item.stock ? `<p class="mt-1.5 text-xs text-red-600">Only ${l.item.stock} in stock</p>` : ''}
+        </div>`;
+      }).join('');
+    }
+
+    const total = cartTotal();
+    const overStock = lines.some(l => l.quantity > l.item.stock);
+    const btn = document.getElementById('checkout-btn');
+    btn.disabled = lines.length === 0 || overStock || state.checkingOut;
+    btn.textContent = state.checkingOut ? 'Processing…' : (lines.length ? `Checkout ${fmtMoney(total)}` : 'Checkout');
+    document.getElementById('checkout-total').textContent = fmtMoney(total);
+    document.getElementById('checkout-clear-btn').classList.toggle('invisible', lines.length === 0);
+    updateCheckoutBar();
+  }
+
+  /** Phones: a sticky bar with the running total, shown only on the Checkout tab. */
+  function updateCheckoutBar() {
+    const lines = getCartLines();
+    const count = lines.reduce((n, l) => n + l.quantity, 0);
+    document.getElementById('checkout-bar').classList.toggle('hidden', !(state.activeTab === 'checkout' && lines.length > 0));
+    document.getElementById('checkout-bar-count').textContent = `${count} item${count === 1 ? '' : 's'}`;
+    document.getElementById('checkout-bar-total').textContent = fmtMoney(cartTotal());
+  }
+
+  async function handleCheckout() {
+    if (state.checkingOut) return;
+    const lines = getCartLines();
+    if (lines.length === 0) return;
+    const short = lines.find(l => l.quantity > l.item.stock);
+    if (short) {
+      showToast(`Only ${short.item.stock} in stock for ${short.item.name}`, 'error');
+      return;
+    }
+
+    state.checkingOut = true;
+    renderCheckout();
+    try {
+      const result = await apiPost('checkout', {
+        items: lines.map(l => ({ productId: l.productId, quantity: l.quantity }))
+      });
+      const data = result.data;
+      // The server's stock numbers are authoritative; mirror them locally.
+      Object.keys(data.newStocks || {}).forEach(productId => {
+        const invItem = state.inventory.find(i => i.id === productId);
+        if (invItem) invItem.stock = data.newStocks[productId];
+      });
+      applyEarningAdd(data.earning);
+      state.cart = [];
+      state.checkingOut = false;
+      showToast(`Checkout complete: ${fmtMoney(data.total)} added to earnings`);
+      renderAll();
+      saveLocalCache();
+      refreshData();
+    } catch (err) {
+      showToast(err.message, 'error');
+      refreshData(); // most likely stale stock — pull the real numbers
+    } finally {
+      if (state.checkingOut) {
+        state.checkingOut = false;
+        renderCheckout();
+      }
+    }
   }
 
   // ---------------------------------------------------------------------
@@ -1084,6 +1432,7 @@
   function renderAll() {
     renderInventoryTable();
     renderCreditsTable();
+    renderCheckout();
     renderReports();
   }
 
@@ -1106,6 +1455,30 @@
       const row = e.target.closest('.creditor-group-row');
       if (!row) return;
       toggleCreditorGroup(row.dataset.creditorKey);
+    });
+
+    document.getElementById('checkout-search').addEventListener('input', renderCheckout);
+    document.getElementById('checkout-products').addEventListener('click', (e) => {
+      const card = e.target.closest('.checkout-product');
+      if (card && !card.disabled) addToCart(card.dataset.productId);
+    });
+    const cartEl = document.getElementById('checkout-cart');
+    cartEl.addEventListener('click', (e) => {
+      const inc = e.target.closest('.cart-inc');
+      const dec = e.target.closest('.cart-dec');
+      const remove = e.target.closest('.cart-remove');
+      if (inc) setCartQty(inc.dataset.productId, cartQty(inc.dataset.productId) + 1);
+      else if (dec) setCartQty(dec.dataset.productId, cartQty(dec.dataset.productId) - 1);
+      else if (remove) setCartQty(remove.dataset.productId, 0);
+    });
+    cartEl.addEventListener('change', (e) => {
+      if (e.target.classList.contains('cart-qty')) setCartQty(e.target.dataset.productId, e.target.value);
+    });
+    document.getElementById('checkout-clear-btn').addEventListener('click', () => { state.cart = []; renderCheckout(); });
+    document.getElementById('checkout-btn').addEventListener('click', handleCheckout);
+    document.getElementById('checkout-bar-btn').addEventListener('click', () => {
+      const panel = document.getElementById('checkout-cart-panel');
+      if (panel.scrollIntoView) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
 
     document.getElementById('add-credit-line-btn').addEventListener('click', addCreditLine);
@@ -1147,6 +1520,8 @@
     if (cached) {
       state.inventory = (cached.inventory || []).map((item, idx) => ({ ...item, _idx: idx }));
       state.credits = cached.credits || [];
+      state.earnings = cached.earnings || [];
+      state.earningsSummary = cached.earningsSummary || emptyEarningsSummary();
       renderAll();
     } else {
       renderSkeletonRows('inventory-tbody', 6);
