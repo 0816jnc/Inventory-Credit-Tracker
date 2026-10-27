@@ -79,6 +79,7 @@
     <button data-tab="inventory" class="tab-btn whitespace-nowrap pb-2.5 text-sm font-semibold border-b-2 border-transparent text-slate-400 transition">Inventory</button>
     <button data-tab="credits" class="tab-btn whitespace-nowrap pb-2.5 text-sm font-semibold border-b-2 border-transparent text-slate-400 transition">Credits</button>
     <button data-tab="checkout" class="tab-btn whitespace-nowrap pb-2.5 text-sm font-semibold border-b-2 border-transparent text-slate-400 transition">Checkout</button>
+    <button data-tab="purchases" class="tab-btn whitespace-nowrap pb-2.5 text-sm font-semibold border-b-2 border-transparent text-slate-400 transition">Purchases</button>
     <button data-tab="reports" class="tab-btn whitespace-nowrap pb-2.5 text-sm font-semibold border-b-2 border-transparent text-slate-400 transition">Reports</button>
   </nav>
 </header>
@@ -197,6 +198,48 @@
     </div>
   </section>
 
+  <!-- ============ PURCHASES ============ -->
+  <section id="section-purchases" class="hidden max-w-6xl mx-auto px-4 sm:px-6 py-6">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+      <div>
+        <h2 class="text-lg font-bold text-slate-900">Purchases</h2>
+        <p class="text-xs text-slate-400">What you buy for the shop. Every purchase is deducted from your total earnings.</p>
+      </div>
+      <button id="add-purchase-btn" class="inline-flex items-center justify-center gap-1.5 bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg shrink-0 transition">
+        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+        Record purchase
+      </button>
+    </div>
+
+    <div class="grid grid-cols-2 gap-4 mb-4">
+      <div class="bg-white rounded-lg border border-slate-200 border-l-4 border-l-rose-500 p-4">
+        <p class="text-xs text-slate-500">Total purchases</p>
+        <p id="purchases-total-display" class="text-xl font-bold text-rose-700 mt-1 tabular-nums">₱0.00</p>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 border-l-4 border-l-emerald-600 p-4">
+        <p class="text-xs text-slate-500">Total earnings after purchases</p>
+        <p id="purchases-net-display" class="text-xl font-bold text-emerald-700 mt-1 tabular-nums">₱0.00</p>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b border-slate-200 text-slate-500 text-xs">
+              <th class="px-4 py-3 text-left font-medium">Date</th>
+              <th class="px-4 py-3 text-left font-medium">Description</th>
+              <th class="px-4 py-3 text-right font-medium">Amount</th>
+              <th class="px-4 py-3 text-right font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="purchases-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <p id="purchases-count-note" class="text-xs text-slate-400 mt-2"></p>
+  </section>
+
   <!-- ============ REPORTS ============ -->
   <section id="section-reports" class="hidden max-w-6xl mx-auto px-4 sm:px-6 py-6">
     <h2 class="text-lg font-bold text-slate-900 mb-1">Reports</h2>
@@ -204,9 +247,19 @@
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div class="sm:col-span-2 bg-white rounded-lg border border-slate-200 border-l-4 border-l-emerald-600 p-5">
-        <p class="text-sm text-slate-500">Total earnings</p>
+        <p class="text-sm text-slate-500">Total earnings (after purchases)</p>
         <p id="metric-total-earnings" class="text-4xl font-extrabold text-emerald-700 mt-2 tabular-nums">₱0.00</p>
+        <p id="metric-earnings-formula" class="text-xs text-slate-400 mt-1.5">₱0.00 received minus ₱0.00 in purchases</p>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 border-l-4 border-l-emerald-400 p-5">
+        <p class="text-sm text-slate-500">Earnings received</p>
+        <p id="metric-earnings-received" class="text-3xl font-extrabold text-slate-900 mt-2 tabular-nums">₱0.00</p>
         <p id="metric-earnings-split" class="text-xs text-slate-400 mt-1.5">Checkout ₱0.00, credit payments ₱0.00</p>
+      </div>
+      <div class="bg-white rounded-lg border border-slate-200 border-l-4 border-l-rose-500 p-5">
+        <p class="text-sm text-slate-500">Purchases</p>
+        <p id="metric-purchases-total" class="text-3xl font-extrabold text-rose-700 mt-2 tabular-nums">₱0.00</p>
+        <p id="metric-purchases-count" class="text-xs text-slate-400 mt-1.5">0 purchase records</p>
       </div>
       <div class="bg-white rounded-lg border border-slate-200 border-l-4 border-l-slate-400 p-5">
         <p class="text-sm text-slate-500">Total inventory value (cost)</p>
@@ -388,6 +441,41 @@
 </div>
 
 <!-- Toasts -->
+<!-- ============ PURCHASE MODAL (Record / Edit) ============ -->
+<div id="purchase-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div class="modal-backdrop absolute inset-0 bg-slate-900/40" onclick="closePurchaseModal()"></div>
+  <div class="modal-panel relative bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h3 id="purchase-modal-title" class="text-base font-bold text-slate-900">Record purchase</h3>
+      <button type="button" onclick="closePurchaseModal()" class="p-1 rounded hover:bg-slate-100 text-slate-400">
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+      </button>
+    </div>
+    <form id="purchase-form" class="space-y-4" onsubmit="handlePurchaseSubmit(event)">
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">Date</label>
+        <input id="purchase-date" type="date" required
+          class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-rose-500/30 focus:border-rose-500 outline-none" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">Description</label>
+        <input id="purchase-description" required maxlength="200" placeholder="e.g. Restock: 2 cases of Coke"
+          class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-rose-500/30 focus:border-rose-500 outline-none" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 mb-1">Amount</label>
+        <input id="purchase-amount" type="number" step="0.01" min="0.01" required placeholder="0.00"
+          class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-rose-500/30 focus:border-rose-500 outline-none" />
+        <p class="text-xs text-slate-400 mt-1">This amount is deducted from your total earnings.</p>
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="button" onclick="closePurchaseModal()" class="flex-1 px-4 py-2.5 rounded-lg border border-slate-300 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition">Cancel</button>
+        <button type="submit" id="purchase-submit-btn" class="flex-1 px-4 py-2.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold transition">Save purchase</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- Sticky cart summary for phones/tablets (the cart itself sits below the products) -->
 <div id="checkout-bar" class="hidden lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-slate-200 px-4 py-3 flex items-center justify-between gap-3">
   <div class="leading-tight">
@@ -412,6 +500,7 @@
     inventory: ['border-slate-700', 'text-slate-800'],
     credits:   ['border-amber-600', 'text-amber-700'],
     checkout:  ['border-emerald-600', 'text-emerald-700'],
+    purchases: ['border-rose-600', 'text-rose-700'],
     reports:   ['border-brand-600', 'text-brand-700']
   };
 
@@ -426,6 +515,9 @@
     earningsSummary: emptyEarningsSummary(),         // all-time totals, from the server
     cart: [],                                        // checkout cart: [{ productId, quantity }]
     checkingOut: false,
+    purchases: [],                                   // latest purchases (server sends the most recent 300)
+    purchasesSummary: emptyPurchasesSummary(),       // all-time total + count, from the server
+    editingPurchaseId: null,
     pendingCredits: new Set()                        // credit lines with a paid/unpaid request in flight
   };
 
@@ -436,7 +528,9 @@
   // ---------------------------------------------------------------------
   function fmtMoney(n) {
     const num = Number(n) || 0;
-    return CONFIG.CURRENCY_SYMBOL + num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    // Net earnings can dip below zero, so put the minus sign before the currency symbol.
+    const sign = num < 0 && Math.abs(num) >= 0.005 ? '-' : '';
+    return sign + CONFIG.CURRENCY_SYMBOL + Math.abs(num).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   function fmtDate(d) {
@@ -532,6 +626,8 @@
       state.credits = json.credits || [];
       state.earnings = json.earnings || [];
       state.earningsSummary = json.earningsSummary || emptyEarningsSummary();
+      state.purchases = json.purchases || [];
+      state.purchasesSummary = json.purchasesSummary || emptyPurchasesSummary();
       document.getElementById('conn-error-banner').classList.add('hidden');
       saveLocalCache();
     } catch (err) {
@@ -570,7 +666,9 @@
         inventory: state.inventory,
         credits: state.credits,
         earnings: state.earnings,
-        earningsSummary: state.earningsSummary
+        earningsSummary: state.earningsSummary,
+        purchases: state.purchases,
+        purchasesSummary: state.purchasesSummary
       }));
     } catch (err) {
       // localStorage unavailable/full — purely a perf nicety, safe to skip
@@ -591,7 +689,7 @@
   // ---------------------------------------------------------------------
   function switchTab(tab) {
     state.activeTab = tab;
-    ['inventory', 'credits', 'checkout', 'reports'].forEach(t => {
+    ['inventory', 'credits', 'checkout', 'purchases', 'reports'].forEach(t => {
       document.getElementById(`section-${t}`).classList.toggle('hidden', t !== tab);
       const btn = document.querySelector(`.tab-btn[data-tab="${t}"]`);
       const [borderClass, textClass] = TAB_ACTIVE_CLASSES[t];
@@ -1189,10 +1287,21 @@
     document.getElementById('metric-item-count').textContent = state.inventory.length;
     document.getElementById('metric-credit-count').textContent = state.credits.length;
 
+    // Total earnings = money received (checkouts + paid credits) minus purchases.
     const earned = state.earningsSummary;
-    document.getElementById('metric-total-earnings').textContent = fmtMoney(earned.total);
+    const spent = state.purchasesSummary;
+    const net = netEarnings();
+    const netEl = document.getElementById('metric-total-earnings');
+    netEl.textContent = fmtMoney(net);
+    styleNet(netEl, net);
+    document.getElementById('metric-earnings-formula').textContent =
+      `${fmtMoney(earned.total)} received minus ${fmtMoney(spent.total)} in purchases`;
+    document.getElementById('metric-earnings-received').textContent = fmtMoney(earned.total);
     document.getElementById('metric-earnings-split').textContent =
       `Checkout ${fmtMoney(earned.checkout)}, credit payments ${fmtMoney(earned.credit)}`;
+    document.getElementById('metric-purchases-total').textContent = fmtMoney(spent.total);
+    document.getElementById('metric-purchases-count').textContent =
+      `${spent.count} purchase record${spent.count === 1 ? '' : 's'}`;
     renderEarningsTable();
   }
 
@@ -1429,10 +1538,160 @@
   // ---------------------------------------------------------------------
   // Init
   // ---------------------------------------------------------------------
+  // ---------------------------------------------------------------------
+  // Purchases
+  //
+  // What the shop spends (restocking, supplies...). Each one has a calendar
+  // date, a description and an amount, and is deducted from total earnings:
+  //   net earnings = earnings received (checkouts + paid credits) - purchases
+  // Dates are plain 'YYYY-MM-DD' text end to end (no time of day), so they
+  // can't shift across timezones.
+  // ---------------------------------------------------------------------
+  function emptyPurchasesSummary() {
+    return { total: 0, count: 0 };
+  }
+
+  function netEarnings() {
+    return round2(state.earningsSummary.total - state.purchasesSummary.total);
+  }
+
+  /** Green while earnings cover purchases, red when purchases are ahead. */
+  function styleNet(el, net) {
+    el.classList.toggle('text-red-600', net < 0);
+    el.classList.toggle('text-emerald-700', net >= 0);
+  }
+
+  /** Today as 'YYYY-MM-DD' in the browser's local time (what a date picker expects). */
+  function todayISO() {
+    const d = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+
+  /** 'YYYY-MM-DD' -> "Jan 15, 2025", built from its parts so no timezone conversion can happen. */
+  function fmtDateOnly(iso) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+    if (!m) return String(iso ?? '');
+    return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+      .toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  function renderPurchases() {
+    const tbody = document.getElementById('purchases-tbody');
+    const net = netEarnings();
+    document.getElementById('purchases-total-display').textContent = fmtMoney(state.purchasesSummary.total);
+    const netEl = document.getElementById('purchases-net-display');
+    netEl.textContent = fmtMoney(net);
+    styleNet(netEl, net);
+
+    const note = document.getElementById('purchases-count-note');
+    if (state.purchases.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="4" class="text-center text-slate-400 py-10 text-sm">No purchases yet. Record what you buy for the shop and it comes off your earnings.</td></tr>`;
+      note.textContent = '';
+      return;
+    }
+    // Newest date first; within the same date, the one recorded last comes first.
+    const rows = [...state.purchases].reverse().sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+    const total = Math.max(state.purchasesSummary.count, rows.length);
+    note.textContent = total > rows.length ? `Showing the latest ${rows.length} of ${total} purchases` : '';
+    tbody.innerHTML = rows.map(p => `
+      <tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+        <td class="px-4 py-3 text-slate-500 whitespace-nowrap">${escapeHtml(fmtDateOnly(p.date))}</td>
+        <td class="px-4 py-3 text-slate-800">${escapeHtml(p.description)}</td>
+        <td class="px-4 py-3 text-right font-semibold text-rose-700 tabular-nums whitespace-nowrap">${fmtMoney(p.amount)}</td>
+        <td class="px-4 py-3 text-right whitespace-nowrap">
+          <button onclick="openPurchaseModal('${p.id}')" title="Edit" class="p-1.5 rounded hover:bg-slate-200 text-slate-500 mr-1">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 6.75L17.25 9" /></svg>
+          </button>
+          <button onclick="handleDeletePurchase('${p.id}')" title="Delete" class="p-1.5 rounded hover:bg-red-100 text-red-500">
+            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+          </button>
+        </td>
+      </tr>`).join('');
+  }
+
+  function openPurchaseModal(id = null) {
+    state.editingPurchaseId = id;
+    const purchase = id ? state.purchases.find(p => p.id === id) : null;
+    document.getElementById('purchase-modal-title').textContent = purchase ? 'Edit purchase' : 'Record purchase';
+    document.getElementById('purchase-date').value = purchase ? purchase.date : todayISO();
+    document.getElementById('purchase-description').value = purchase ? purchase.description : '';
+    document.getElementById('purchase-amount').value = purchase ? purchase.amount : '';
+    document.getElementById('purchase-modal').classList.remove('hidden');
+  }
+
+  function closePurchaseModal() {
+    document.getElementById('purchase-modal').classList.add('hidden');
+    document.getElementById('purchase-form').reset();
+    state.editingPurchaseId = null;
+  }
+
+  async function handlePurchaseSubmit(e) {
+    e.preventDefault();
+    const editingId = state.editingPurchaseId;
+    const date = document.getElementById('purchase-date').value;
+    const description = document.getElementById('purchase-description').value.trim();
+    const amount = parseFloat(document.getElementById('purchase-amount').value);
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { showToast('Pick a date for this purchase', 'error'); return; }
+    if (!description) { showToast('Enter a description', 'error'); return; }
+    if (!(amount > 0)) { showToast('Enter an amount greater than zero', 'error'); return; }
+
+    const btn = document.getElementById('purchase-submit-btn');
+    btn.disabled = true;
+    const originalLabel = btn.textContent;
+    btn.textContent = 'Saving…';
+    try {
+      const s = state.purchasesSummary;
+      if (editingId) {
+        const result = await apiPost('updatePurchase', { id: editingId, date, description, amount });
+        const idx = state.purchases.findIndex(p => p.id === editingId);
+        if (idx !== -1) state.purchases[idx] = result.data.purchase;
+        s.total = round2(s.total - result.data.previousAmount + result.data.purchase.amount);
+        showToast('Purchase updated');
+      } else {
+        const result = await apiPost('addPurchase', { date, description, amount });
+        state.purchases.push(result.data.purchase);
+        s.total = round2(s.total + result.data.purchase.amount);
+        s.count += 1;
+        showToast(`Purchase recorded: ${fmtMoney(result.data.purchase.amount)} deducted from earnings`);
+      }
+      closePurchaseModal();
+      renderAll();
+      saveLocalCache();
+      refreshData();
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalLabel;
+    }
+  }
+
+  async function handleDeletePurchase(id) {
+    const purchase = state.purchases.find(p => p.id === id);
+    const amountText = purchase ? ` Your total earnings will go back up by ${fmtMoney(purchase.amount)}.` : '';
+    if (!confirm('Delete this purchase?' + amountText)) return;
+    try {
+      const result = await apiPost('deletePurchase', { id });
+      state.purchases = state.purchases.filter(p => p.id !== id);
+      const s = state.purchasesSummary;
+      s.total = round2(s.total - result.data.amount);
+      s.count = Math.max(0, s.count - 1);
+      showToast('Purchase deleted');
+      renderAll();
+      saveLocalCache();
+      refreshData();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+
   function renderAll() {
     renderInventoryTable();
     renderCreditsTable();
     renderCheckout();
+    renderPurchases();
     renderReports();
   }
 
@@ -1481,6 +1740,7 @@
       if (panel.scrollIntoView) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
 
+    document.getElementById('add-purchase-btn').addEventListener('click', () => openPurchaseModal());
     document.getElementById('add-credit-line-btn').addEventListener('click', addCreditLine);
     const linesContainer = document.getElementById('credit-lines-container');
     linesContainer.addEventListener('change', (e) => {
@@ -1522,6 +1782,8 @@
       state.credits = cached.credits || [];
       state.earnings = cached.earnings || [];
       state.earningsSummary = cached.earningsSummary || emptyEarningsSummary();
+      state.purchases = cached.purchases || [];
+      state.purchasesSummary = cached.purchasesSummary || emptyPurchasesSummary();
       renderAll();
     } else {
       renderSkeletonRows('inventory-tbody', 6);
